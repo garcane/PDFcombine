@@ -1,0 +1,21 @@
+# PDF Toolkit - runtime dependencies
+# Install with:  python -m pip install -r requirements.txt
+
+customtkinter>=5.2.2       # modern themed widget toolkit
+pypdf>=5.0.0               # all PDF reading and writing
+pillow>=10.0.0             # images, thumbnails, icon generation
+tkinterdnd2>=0.4.2         # drag-and-drop of files from Explorer
+pypdfium2>=4.30.0          # first-page thumbnails and the split preview
+
+# ---------------------------------------------------------------------------
+# Optional / development only
+# ---------------------------------------------------------------------------
+# pytest>=8.0.0            # test suite (tests/)
+# pyinstaller>=6.0.0       # build the standalone Windows executable
+#
+# Notes
+# * tkinterdnd2 and pypdfium2 are optional at runtime: without them the
+#   application still starts, it simply loses Explorer drag-and-drop and
+#   falls back to drawn placeholder thumbnails.
+# * PyMuPDF is supported as an alternative rasteriser if it is already
+#   installed; pypdfium2 is preferred because of its permissive licence.
