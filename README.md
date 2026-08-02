@@ -206,8 +206,3 @@ metadata editor, recursive folder combining and batch processing.
 | Diagnosing anything else | See `%USERPROFILE%\.pdf_toolkit\pdf_toolkit.log`. |
 
 ---
-
-## Licence
-
-Add the licence of your choice. The dependencies are MIT/BSD/Apache licensed;
-`pypdfium2` bundles PDFium under Apache-2.0/BSD-3-Clause.
