@@ -9,8 +9,16 @@ subclass, register it in :meth:`app.PdfToolkitApp._create_views`, and add a
 """
 
 from ui.base_view import AppController, BaseView
+from ui.convert_view import ConvertView
 from ui.home import HomeView
 from ui.merge_view import MergeView
 from ui.split_view import SplitView
 
-__all__ = ["AppController", "BaseView", "HomeView", "MergeView", "SplitView"]
+__all__ = [
+    "AppController",
+    "BaseView",
+    "ConvertView",
+    "HomeView",
+    "MergeView",
+    "SplitView",
+]

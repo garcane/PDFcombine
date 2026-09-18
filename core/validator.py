@@ -14,10 +14,10 @@ from pathlib import Path
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError as PyPdfReadError
 
-from core.constants import MAX_PAGE_NUMBER
+from core.constants import LOCK_FILE_PREFIX, MAX_PAGE_NUMBER
 from core.exceptions import PdfReadError, PdfWriteError, ValidationError
-from core.models import PdfFileInfo
-from core.utils import is_pdf
+from core.models import DocxFileInfo, PdfFileInfo
+from core.utils import is_docx, is_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +91,68 @@ def inspect_pdf(path: Path) -> PdfFileInfo:
         modified=stat.st_mtime,
         title=title,
         encrypted=encrypted,
+    )
+
+
+def inspect_docx(path: Path, base_folder: Path | None = None) -> DocxFileInfo:
+    """Read ``path`` and return its metadata.
+
+    Args:
+        path: Location of the Word document to inspect.
+        base_folder: The folder the user selected, when the file came from a
+            folder scan. Stored so the converter can mirror the sub-folder
+            structure in the output.
+
+    Returns:
+        A populated :class:`DocxFileInfo`.
+
+    Raises:
+        PdfReadError: The file is missing, empty, not a ``.docx``, password
+            protected, or otherwise unreadable.
+    """
+    from core.docx_reader import read_docx  # imported late: pulls in python-docx
+
+    if not path.exists():
+        raise PdfReadError(f"'{path.name}' no longer exists at:\n{path.parent}")
+    if not path.is_file():
+        raise PdfReadError(f"'{path.name}' is not a file.")
+    if path.name.startswith(LOCK_FILE_PREFIX):
+        raise PdfReadError(
+            f"'{path.name}' is a Word lock file, not a document.\n"
+            "Close the document in Word and select the real file."
+        )
+    if not is_docx(path):
+        raise PdfReadError(
+            f"'{path.name}' is not a Word .docx document.\n"
+            "Older .doc files must be saved as .docx in Word first."
+        )
+
+    try:
+        stat = path.stat()
+    except OSError as exc:
+        raise PdfReadError(f"'{path.name}' could not be read.\n{exc}") from exc
+
+    if stat.st_size == 0:
+        raise PdfReadError(f"'{path.name}' is empty (0 bytes).")
+    if not os.access(path, os.R_OK):
+        raise PdfReadError(f"'{path.name}' cannot be opened - permission denied.")
+
+    document = read_docx(path)
+
+    relative: Path | None = None
+    if base_folder is not None:
+        try:
+            relative = path.relative_to(base_folder)
+        except ValueError:
+            relative = None
+
+    return DocxFileInfo(
+        path=path,
+        size_bytes=stat.st_size,
+        modified=stat.st_mtime,
+        paragraph_count=document.paragraph_count,
+        table_count=document.table_count,
+        relative_path=relative,
     )
 
 

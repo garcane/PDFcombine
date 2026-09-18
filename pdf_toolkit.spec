@@ -22,13 +22,20 @@ datas = [
 ]
 datas += collect_data_files("customtkinter")
 datas += collect_data_files("tkinterdnd2")
+datas += collect_data_files("docx")        # python-docx ships XML templates
+datas += collect_data_files("reportlab")   # fonts used by the PDF renderer
 
 a = Analysis(  # noqa: F821
     ["app.py"],
     pathex=[str(SPEC_DIR)],
     binaries=[],
     datas=datas,
-    hiddenimports=["PIL._tkinter_finder", "pypdfium2"],
+    hiddenimports=[
+        "PIL._tkinter_finder",
+        "pypdfium2",
+        "docx",
+        "reportlab.graphics.barcode",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

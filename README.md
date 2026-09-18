@@ -1,9 +1,10 @@
 # PDF Toolkit
 
-A modern desktop application for merging and splitting PDF files on Windows.
-Built with Python and CustomTkinter, it looks and behaves like commercial
-desktop software: dark theme, native file dialogs, drag-and-drop, progress
-reporting, cancellable jobs and friendly error handling.
+A modern desktop application for merging and splitting PDFs and converting
+Word documents, on Windows. Built with Python and CustomTkinter, it looks and
+behaves like commercial desktop software: dark theme, native file dialogs,
+drag-and-drop, progress reporting, cancellable jobs and friendly error
+handling.
 
 Everything runs locally — no file ever leaves the machine.
 
@@ -35,6 +36,23 @@ Everything runs locally — no file ever leaves the machine.
   many files will be produced.
 * First-page preview and document details, output folder picker, and a switch
   choosing between replacing existing files or auto-numbering them.
+
+### Convert Word files
+* Input as **one document**, **many documents**, or a **whole folder**
+  (optionally including sub-folders) — by picker or by drag-and-drop.
+* Output to **PDF** or **Markdown**.
+* Two output modes: **one file per document**, or **collate everything into a
+  single file** in the order shown in the review list.
+* Batch conversions can **recreate the source sub-folder structure** in the
+  output folder, so a nested archive converts in place.
+* Word lock files (`~$name.docx`) and non-Word files are ignored automatically;
+  a document that cannot be read is reported and the rest of the batch
+  continues.
+* Structure is preserved: headings, bold/italic, bullet and numbered lists,
+  quotes and tables all survive the conversion.
+* **PDF engine** is chosen automatically — Microsoft Word (via `pywin32`) or
+  LibreOffice when installed, otherwise the built-in renderer, which needs no
+  other software. You can force a specific engine from the drop-down.
 
 ### Throughout
 * Dark theme, responsive layout, consistent spacing, large readable controls.
@@ -74,20 +92,25 @@ python app.py
 pdf-toolkit/
 ├── app.py                  Application entry point, window and view routing
 │
-├── core/                   All PDF logic - imports no UI code
+├── core/                   All document logic - imports no UI code
 │   ├── constants.py        Configurable constants (paths, sizes, templates)
+│   ├── docx_converter.py   DocxConvertTool, OutputFormat, PdfEngine
+│   ├── docx_reader.py      Word -> format-neutral block model
 │   ├── exceptions.py       User-facing exception hierarchy
 │   ├── logging_config.py   Rotating file + console logging
+│   ├── markdown_writer.py  Block model -> Markdown
 │   ├── merger.py           PdfMergeTool
-│   ├── models.py           PdfFileInfo, OperationResult
+│   ├── models.py           FileInfo, PdfFileInfo, DocxFileInfo, OperationResult
+│   ├── pdf_renderer.py     Block model -> PDF (built-in Word->PDF engine)
 │   ├── progress.py         Progress reporting and cancellation tokens
 │   ├── splitter.py         PdfSplitTool, SplitMode
 │   ├── thumbnails.py       First-page rendering with graceful fallback
 │   ├── utils.py            Sizes, dates, natural sort, folder scanning
-│   └── validator.py        PDF inspection and page-range parsing
+│   └── validator.py        PDF/Word inspection and page-range parsing
 │
 ├── ui/                     All presentation - imports no pypdf
 │   ├── base_view.py        BaseView + AppController protocol
+│   ├── convert_view.py     Word conversion workflow
 │   ├── dialogs.py          Themed modal dialogs, native file pickers
 │   ├── dnd.py              Optional Explorer drag-and-drop
 │   ├── file_list.py        Re-orderable review list (drag + buttons)
@@ -105,8 +128,8 @@ pdf-toolkit/
 └── README.md
 ```
 
-**Architectural rule:** the UI layer contains no PDF processing logic, and the
-core layer imports no Tkinter. Core tools are therefore usable from scripts and
+**Architectural rule:** the UI layer contains no document processing logic, and
+the core layer imports no Tkinter. Core tools are therefore usable from scripts and
 are covered by unit tests that need no display.
 
 ---
@@ -134,7 +157,8 @@ python -m pytest -q
 ```
 
 The suite covers page-range parsing, corrupt/missing/empty file handling,
-merge ordering, overwrite behaviour, all three split modes and cancellation.
+merge ordering, overwrite behaviour, all three split modes, Word reading,
+Markdown and PDF output, folder mirroring, collation order and cancellation.
 
 ---
 
@@ -152,12 +176,13 @@ The executable is written to `dist\PDF Toolkit.exe`.
 Notes:
 
 * The provided `pdf_toolkit.spec` already bundles the CustomTkinter theme
-  files, the `tkdnd` Tcl library used by `tkinterdnd2`, and the `assets`
-  folder, and sets `console=False` so no terminal window appears.
+  files, the `tkdnd` Tcl library used by `tkinterdnd2`, the python-docx and
+  reportlab data files, and the `assets` folder, and sets `console=False` so
+  no terminal window appears.
 * A one-line equivalent, if you prefer not to use the spec file:
 
   ```bash
-  pyinstaller app.py --name "PDF Toolkit" --onefile --windowed --icon assets/app.ico --add-data "assets;assets" --collect-data customtkinter --collect-data tkinterdnd2 --hidden-import PIL._tkinter_finder
+  pyinstaller app.py --name "PDF Toolkit" --onefile --windowed --icon assets/app.ico --add-data "assets;assets" --collect-data customtkinter --collect-data tkinterdnd2 --collect-data docx --collect-data reportlab --hidden-import PIL._tkinter_finder
   ```
 
 * First launch of a `--onefile` build is slower because the bundle unpacks to
@@ -200,6 +225,8 @@ metadata editor, recursive folder combining and batch processing.
 | Symptom | Cause and fix |
 |---------|---------------|
 | Dragging files from Explorer does nothing | `tkinterdnd2` is missing or its Tcl library failed to load. Re-install with `pip install --force-reinstall tkinterdnd2`. Buttons and shortcuts still work. |
+| Converted PDFs do not match Word's layout exactly | The built-in renderer reproduces structure, not Word's exact pagination. Install Microsoft Word (`pip install pywin32`) or LibreOffice and the converter will use it automatically. |
+| A `.doc` file cannot be added | Only the modern `.docx` format is supported. Open it in Word and save as `.docx`. |
 | Thumbnails show a generic page glyph | No rasteriser is installed. `pip install pypdfium2`. |
 | "This file is password protected" | Encrypted PDFs are refused. Remove the password first. |
 | Nothing happens after choosing a folder | The folder contains no PDFs; sub-folders are not scanned. |

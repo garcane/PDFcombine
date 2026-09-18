@@ -4,12 +4,15 @@
 customtkinter>=5.2.2       # modern themed widget toolkit
 pypdf>=5.0.0               # all PDF reading and writing
 pillow>=10.0.0             # images, thumbnails, icon generation
+python-docx>=1.1.0         # reading Word .docx documents
+reportlab>=4.0.0           # built-in Word-to-PDF renderer
 tkinterdnd2>=0.4.2         # drag-and-drop of files from Explorer
 pypdfium2>=4.30.0          # first-page thumbnails and the split preview
 
 # ---------------------------------------------------------------------------
 # Optional / development only
 # ---------------------------------------------------------------------------
+# pywin32>=306             # use Microsoft Word for the highest-fidelity PDFs
 # pytest>=8.0.0            # test suite (tests/)
 # pyinstaller>=6.0.0       # build the standalone Windows executable
 #
@@ -17,5 +20,8 @@ pypdfium2>=4.30.0          # first-page thumbnails and the split preview
 # * tkinterdnd2 and pypdfium2 are optional at runtime: without them the
 #   application still starts, it simply loses Explorer drag-and-drop and
 #   falls back to drawn placeholder thumbnails.
+# * Word-to-PDF works out of the box through reportlab. If Microsoft Word
+#   (with pywin32) or LibreOffice is installed, the converter uses it
+#   automatically for closer-to-original page layout.
 # * PyMuPDF is supported as an alternative rasteriser if it is already
 #   installed; pypdfium2 is preferred because of its permissive licence.

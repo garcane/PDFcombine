@@ -15,7 +15,7 @@ from typing import Final
 # --------------------------------------------------------------------------- #
 APP_NAME: Final[str] = "PDF Toolkit"
 APP_VERSION: Final[str] = "1.0.0"
-APP_TAGLINE: Final[str] = "Merge, split and manage your PDF documents"
+APP_TAGLINE: Final[str] = "Merge, split and convert your documents"
 ORGANISATION: Final[str] = "PDF Toolkit"
 
 # --------------------------------------------------------------------------- #
@@ -49,6 +49,22 @@ PDF_FILETYPES: Final[tuple[tuple[str, str], ...]] = (
     ("PDF documents", "*.pdf"),
     ("All files", "*.*"),
 )
+
+# --------------------------------------------------------------------------- #
+# Word handling
+# --------------------------------------------------------------------------- #
+DOCX_EXTENSIONS: Final[tuple[str, ...]] = (".docx",)
+DOCX_FILETYPES: Final[tuple[tuple[str, str], ...]] = (
+    ("Word documents", "*.docx"),
+    ("All files", "*.*"),
+)
+
+#: Word writes lock files named ``~$document.docx`` next to open documents.
+#: They are not real documents and must never be picked up by a folder scan.
+LOCK_FILE_PREFIX: Final[str] = "~$"
+
+#: Default name for a collated conversion output (extension added by the tool).
+DEFAULT_COMBINED_NAME: Final[str] = "Combined"
 
 #: Templates used when naming generated files. ``{stem}`` is the source file
 #: name without extension, indices are 1-based and zero padded.

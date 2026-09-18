@@ -28,6 +28,7 @@ from core.constants import (
 )
 from core.logging_config import configure_logging
 from ui.base_view import BaseView
+from ui.convert_view import ConvertView
 from ui.dialogs import ask_confirm, show_message
 from ui.dnd import bootstrap_root
 from ui.home import HomeView
@@ -83,7 +84,7 @@ class PdfToolkitApp(ctk.CTk):
 
         Registering a future tool means adding one line here.
         """
-        for view_class in (HomeView, MergeView, SplitView):
+        for view_class in (HomeView, MergeView, SplitView, ConvertView):
             view = view_class(self._container, self)
             self._views[view.view_name] = view
 

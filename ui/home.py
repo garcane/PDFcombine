@@ -152,6 +152,16 @@ class HomeView(BaseView):
                 view_name="split",
                 accent="#a855f7",
             ),
+            ToolEntry(
+                icon="📝",
+                title="Convert Word files",
+                description=(
+                    "Turn .docx documents into PDF or Markdown - singly, in "
+                    "bulk, or collated into one file."
+                ),
+                view_name="convert",
+                accent="#14b8a6",
+            ),
         ]
 
     # ----------------------------------------------------------------- #

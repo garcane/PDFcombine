@@ -8,9 +8,9 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
-from core.constants import PDF_EXTENSIONS
+from core.constants import DOCX_EXTENSIONS, LOCK_FILE_PREFIX, PDF_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -41,21 +41,66 @@ def is_pdf(path: Path | str) -> bool:
     return Path(path).suffix.lower() in PDF_EXTENSIONS
 
 
-def discover_pdfs(folder: Path, recursive: bool = False) -> list[Path]:
-    """Return every PDF inside ``folder``, sorted naturally by file name.
+def is_docx(path: Path | str) -> bool:
+    """Return ``True`` when ``path`` is a real ``.docx`` (not a lock file)."""
+    path = Path(path)
+    if path.name.startswith(LOCK_FILE_PREFIX):
+        return False
+    return path.suffix.lower() in DOCX_EXTENSIONS
 
-    Non-PDF files are ignored. When ``recursive`` is ``True`` sub-folders are
-    scanned as well, which is the building block for a future
-    "combine folders recursively" tool.
+
+def discover_files(
+    folder: Path,
+    extensions: Sequence[str],
+    recursive: bool = False,
+) -> list[Path]:
+    """Return every file in ``folder`` matching ``extensions``.
+
+    Args:
+        folder: Folder to scan.
+        extensions: Lower-case extensions including the dot, e.g. ``(".pdf",)``.
+        recursive: Also scan sub-folders.
+
+    Returns:
+        Matching files sorted naturally: by relative folder, then by name, so
+        ``file2`` comes before ``file10``.
     """
+    wanted = {ext.lower() for ext in extensions}
     pattern = "**/*" if recursive else "*"
     try:
-        entries = folder.glob(pattern)
-        found = [p for p in entries if p.is_file() and is_pdf(p)]
+        found = [
+            path
+            for path in folder.glob(pattern)
+            if path.is_file()
+            and path.suffix.lower() in wanted
+            and not path.name.startswith(LOCK_FILE_PREFIX)
+        ]
     except OSError as exc:
         logger.warning("Could not scan folder %s: %s", folder, exc)
         return []
-    return sorted(found, key=lambda p: natural_sort_key(p.name))
+
+    def sort_key(path: Path) -> tuple[object, ...]:
+        """Group by sub-folder, then order naturally by file name."""
+        try:
+            relative = path.relative_to(folder)
+        except ValueError:  # pragma: no cover - defensive
+            relative = Path(path.name)
+        return (
+            tuple(natural_sort_key(part) for part in relative.parts[:-1]),
+            natural_sort_key(path.name),
+        )
+
+    return sorted(found, key=sort_key)
+
+
+def discover_pdfs(folder: Path, recursive: bool = False) -> list[Path]:
+    """Return every PDF inside ``folder``, sorted naturally by file name."""
+    return discover_files(folder, PDF_EXTENSIONS, recursive)
+
+
+def discover_docx(folder: Path, recursive: bool = False) -> list[Path]:
+    """Return every Word document inside ``folder``, Word lock files excluded."""
+    return discover_files(folder, DOCX_EXTENSIONS, recursive)
 
 
 def natural_sort_key(name: str) -> tuple[object, ...]:

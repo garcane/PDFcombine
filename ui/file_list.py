@@ -1,8 +1,8 @@
-"""Re-orderable PDF list used by the merge review screen.
+"""Re-orderable document list shared by the merge and convert review screens.
 
 The list widget owns the ordering and is the single source of truth for the
-merge operation - the order shown here is always the order written out, never
-the order the operating system happened to hand the files over in.
+operation that follows - the order shown here is always the order written out,
+never the order the operating system happened to hand the files over in.
 
 Re-ordering works two ways:
 
@@ -20,7 +20,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from core.constants import THUMBNAIL_SIZE
-from core.models import PdfFileInfo
+from core.models import FileInfo
 from core.thumbnails import thumbnail_service
 from core.utils import truncate_middle
 from ui.theme import COLORS, PAD, fonts
@@ -36,7 +36,7 @@ class FileRow(ctk.CTkFrame):
     def __init__(
         self,
         master: ctk.CTkBaseClass,
-        info: PdfFileInfo,
+        info: FileInfo,
         index: int,
         on_select: Callable[["FileRow"], None],
         on_remove: Callable[["FileRow"], None],
@@ -44,6 +44,7 @@ class FileRow(ctk.CTkFrame):
         on_drag_start: Callable[["FileRow", object], None],
         on_drag_motion: Callable[["FileRow", object], None],
         on_drag_end: Callable[["FileRow", object], None],
+        show_thumbnail: bool = True,
     ) -> None:
         """Build the row for ``info`` at 0-based ``index``."""
         super().__init__(
@@ -77,7 +78,8 @@ class FileRow(ctk.CTkFrame):
         self._handle.configure(cursor="fleur")
 
         self._thumbnail = ctk.CTkLabel(self, text="", width=THUMBNAIL_SIZE[0])
-        self._thumbnail.grid(row=0, column=2, rowspan=2, padx=(PAD.xs, PAD.md), pady=PAD.sm)
+        if show_thumbnail:
+            self._thumbnail.grid(row=0, column=2, rowspan=2, padx=(PAD.xs, PAD.md), pady=PAD.sm)
 
         self._name = ctk.CTkLabel(
             self,
@@ -90,7 +92,7 @@ class FileRow(ctk.CTkFrame):
 
         self._meta = ctk.CTkLabel(
             self,
-            text=f"{info.page_label}  ·  {info.size_label}  ·  {info.modified_label}",
+            text=info.detail_label,
             font=fonts().small,
             text_color=COLORS.text_muted,
             anchor="w",
@@ -186,13 +188,14 @@ class FileRow(ctk.CTkFrame):
 
 
 class FileListPanel(ctk.CTkFrame):
-    """Scrollable, re-orderable list of :class:`PdfFileInfo` objects."""
+    """Scrollable, re-orderable list of :class:`FileInfo` objects."""
 
     def __init__(
         self,
         master: ctk.CTkBaseClass,
         on_change: Callable[[], None],
         empty_widget_factory: Callable[[ctk.CTkBaseClass], ctk.CTkBaseClass] | None = None,
+        show_thumbnails: bool = True,
     ) -> None:
         """Create the panel.
 
@@ -200,12 +203,15 @@ class FileListPanel(ctk.CTkFrame):
             master: Parent widget.
             on_change: Called whenever the list contents or order change.
             empty_widget_factory: Builds the placeholder shown when empty.
+            show_thumbnails: Render first-page thumbnails. Switched off for
+                formats the rasteriser cannot open, such as Word documents.
         """
         super().__init__(master, fg_color="transparent")
 
-        self._files: list[PdfFileInfo] = []
+        self._files: list[FileInfo] = []
         self._rows: list[FileRow] = []
         self._on_change = on_change
+        self._show_thumbnails = show_thumbnails
         self._selected: FileRow | None = None
         self._drag_row: FileRow | None = None
         self._drag_active = False
@@ -225,11 +231,13 @@ class FileListPanel(ctk.CTkFrame):
         self._empty_factory = empty_widget_factory
         self._empty_widget: ctk.CTkBaseClass | None = None
 
-        self._thumbnail_queue: queue.Queue[tuple[FileRow, PdfFileInfo] | None] = queue.Queue()
-        self._thumbnail_thread = threading.Thread(
-            target=self._thumbnail_worker, name="pdf-thumbnails", daemon=True
-        )
-        self._thumbnail_thread.start()
+        self._thumbnail_queue: queue.Queue[tuple[FileRow, FileInfo] | None] = queue.Queue()
+        self._thumbnail_thread: threading.Thread | None = None
+        if show_thumbnails:
+            self._thumbnail_thread = threading.Thread(
+                target=self._thumbnail_worker, name="pdf-thumbnails", daemon=True
+            )
+            self._thumbnail_thread.start()
 
         self._render()
 
@@ -237,7 +245,7 @@ class FileListPanel(ctk.CTkFrame):
     # Data access
     # ----------------------------------------------------------------- #
     @property
-    def files(self) -> list[PdfFileInfo]:
+    def files(self) -> list[FileInfo]:
         """The files in their current display order (a copy)."""
         return list(self._files)
 
@@ -248,8 +256,8 @@ class FileListPanel(ctk.CTkFrame):
 
     @property
     def total_pages(self) -> int:
-        """Combined page count of every file."""
-        return sum(info.page_count for info in self._files)
+        """Combined page count of every file (0 for formats without pages)."""
+        return sum(getattr(info, "page_count", 0) for info in self._files)
 
     @property
     def total_size(self) -> int:
@@ -263,13 +271,13 @@ class FileListPanel(ctk.CTkFrame):
     # ----------------------------------------------------------------- #
     # Mutations
     # ----------------------------------------------------------------- #
-    def set_files(self, files: list[PdfFileInfo]) -> None:
+    def set_files(self, files: list[FileInfo]) -> None:
         """Replace the whole list."""
         self._files = list(files)
         self._render()
         self._on_change()
 
-    def add_files(self, files: list[PdfFileInfo]) -> int:
+    def add_files(self, files: list[FileInfo]) -> int:
         """Append ``files``, skipping ones already present.
 
         Returns:
@@ -288,7 +296,7 @@ class FileListPanel(ctk.CTkFrame):
             self._on_change()
         return added
 
-    def remove(self, info: PdfFileInfo) -> None:
+    def remove(self, info: FileInfo) -> None:
         """Remove one file from the list."""
         self._files = [item for item in self._files if item.key != info.key]
         self._render()
@@ -359,10 +367,12 @@ class FileListPanel(ctk.CTkFrame):
                 on_drag_start=self._drag_start,
                 on_drag_motion=self._drag_motion,
                 on_drag_end=self._drag_end,
+                show_thumbnail=self._show_thumbnails,
             )
             row.pack(fill="x", padx=PAD.sm, pady=(PAD.xs if index else PAD.sm, PAD.xs))
             self._rows.append(row)
-            self._thumbnail_queue.put((row, info))
+            if self._show_thumbnails:
+                self._thumbnail_queue.put((row, info))
             if info.key == selected_key:
                 self._select_row(row)
 
@@ -382,7 +392,7 @@ class FileListPanel(ctk.CTkFrame):
         self._selected = row
         row.set_selected(True)
 
-    def _move_info(self, info: PdfFileInfo, delta: int) -> bool:
+    def _move_info(self, info: FileInfo, delta: int) -> bool:
         """Move ``info`` by ``delta`` positions, clamped to the list bounds."""
         index = next((i for i, item in enumerate(self._files) if item.key == info.key), None)
         if index is None:
