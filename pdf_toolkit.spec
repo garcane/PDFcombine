@@ -24,6 +24,7 @@ datas += collect_data_files("customtkinter")
 datas += collect_data_files("tkinterdnd2")
 datas += collect_data_files("docx")        # python-docx ships XML templates
 datas += collect_data_files("reportlab")   # fonts used by the PDF renderer
+datas += collect_data_files("pymupdf")     # base14 fonts used by the render tool
 
 a = Analysis(  # noqa: F821
     ["app.py"],
@@ -35,6 +36,8 @@ a = Analysis(  # noqa: F821
         "pypdfium2",
         "docx",
         "reportlab.graphics.barcode",
+        "pymupdf",
+        "chardet",
     ],
     hookspath=[],
     hooksconfig={},

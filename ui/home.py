@@ -74,17 +74,22 @@ class HomeView(BaseView):
             header, text=APP_TAGLINE, font=fonts().body, text_color=COLORS.text_muted
         ).pack(pady=(PAD.xs, 0))
 
+    #: Maximum tool cards shown per row before wrapping to the next one.
+    _MAX_COLUMNS = 3
+
     def _build_tools(self, parent: ctk.CTkFrame) -> None:
-        """Grid of tool cards, centred and evenly spaced."""
+        """Grid of tool cards, wrapping to a new row once a row is full."""
         grid = ctk.CTkFrame(parent, fg_color="transparent")
         grid.pack(fill="both", expand=True)
 
         entries = self.tool_entries()
-        for column in range(len(entries)):
+        columns = min(len(entries), self._MAX_COLUMNS) or 1
+        for column in range(columns):
             grid.grid_columnconfigure(column, weight=1, uniform="tools")
-        grid.grid_rowconfigure(0, weight=1)
 
-        for column, entry in enumerate(entries):
+        for index, entry in enumerate(entries):
+            row, column = divmod(index, columns)
+            grid.grid_rowconfigure(row, weight=1)
             card = ToolCard(
                 grid,
                 icon=entry.icon,
@@ -95,7 +100,7 @@ class HomeView(BaseView):
             )
             # "new" keeps the cards sized to their content and leaves any
             # spare vertical space below them.
-            card.grid(row=0, column=column, padx=PAD.md, pady=PAD.md, sticky="new")
+            card.grid(row=row, column=column, padx=PAD.md, pady=PAD.md, sticky="new")
 
     def _build_footer(self, parent: ctk.CTkFrame) -> None:
         """Version label and the exit button."""
@@ -162,6 +167,26 @@ class HomeView(BaseView):
                 view_name="convert",
                 accent="#14b8a6",
             ),
+            ToolEntry(
+                icon="🖼",
+                title="PDF to Image",
+                description=(
+                    "Export a PDF's pages as PNG or JPEG files at the "
+                    "resolution you choose."
+                ),
+                view_name="render",
+                accent="#f59e0b",
+            ),
+            ToolEntry(
+                icon="📊",
+                title="Batch to PDF",
+                description=(
+                    "Convert text, CSV, log and .sql files to PDF - singly, "
+                    "or collated into one file."
+                ),
+                view_name="batch",
+                accent="#3b82f6",
+            ),
         ]
 
     # ----------------------------------------------------------------- #
@@ -192,7 +217,7 @@ class HomeView(BaseView):
             f"About {APP_NAME}",
             f"{APP_NAME} {APP_VERSION}\n\n"
             f"{APP_TAGLINE}.\n\n"
-            "Built with Python, CustomTkinter and pypdf.\n"
+            "Built with Python, CustomTkinter, pypdf and PyMuPDF.\n"
             "All processing happens on this computer - no files are uploaded.",
             "info",
         )

@@ -9,6 +9,7 @@ returning an :class:`core.models.OperationResult`, then a matching view under
 :mod:`ui`.
 """
 
+from core.batch import TextToPdfTool
 from core.exceptions import (
     OperationCancelled,
     PdfReadError,
@@ -19,6 +20,7 @@ from core.exceptions import (
 from core.merger import PdfMergeTool
 from core.models import OperationResult, PdfFileInfo
 from core.progress import CallbackProgress, CancellationToken, NullProgress
+from core.render import PdfToImageTool
 from core.splitter import PdfSplitTool, SplitMode
 
 __all__ = [
@@ -31,8 +33,10 @@ __all__ = [
     "PdfMergeTool",
     "PdfReadError",
     "PdfSplitTool",
+    "PdfToImageTool",
     "PdfToolkitError",
     "PdfWriteError",
     "SplitMode",
+    "TextToPdfTool",
     "ValidationError",
 ]

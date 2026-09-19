@@ -44,7 +44,7 @@ This is primarily an **architectural consolidation**, rather than an attempt to 
 The existing repositories represent individual components of a broader document-processing workflow.
 
 | Repository           | Existing Purpose               | Target Capability     |
-| -------------------- | ------------------------------ | --------------------- |
+| --------------------- | ------------------------------ | --------------------- |
 | PDF Combine          | PDF combination and processing | Core PDF application  |
 | Word Document Merger | Word document merging          | Document processing   |
 | Docs to Markdown     | Document/content conversion    | Markdown extraction   |
@@ -504,7 +504,7 @@ Record:
 Each component should be assigned one of four outcomes:
 
 | Classification | Meaning                                                  |
-| -------------- | -------------------------------------------------------- |
+| --------------- | ---------------------------------------------------------- |
 | Retain         | Existing code remains substantially useful               |
 | Migrate        | Code moves into PDF Combine                              |
 | Rewrite        | Functionality is retained but implementation is replaced |
@@ -969,3 +969,4 @@ PDF Combine should not become a directory containing several old projects.
 It should become a single application whose architecture naturally accommodates the functionality that previously existed across those repositories.
 
 The result should be easier to maintain, easier to understand, easier to demonstrate, and more representative of the overall scope of the work.
+</content>

@@ -14,7 +14,7 @@ from typing import Literal, Sequence
 
 import customtkinter as ctk
 
-from core.constants import DEFAULT_MERGE_FILENAME, DOCX_FILETYPES, PDF_FILETYPES
+from core.constants import BATCH_FILETYPES, DEFAULT_MERGE_FILENAME, DOCX_FILETYPES, PDF_FILETYPES
 from core.exceptions import PdfToolkitError
 from ui.theme import (
     COLORS,
@@ -318,6 +318,17 @@ def ask_docx_files(parent: ctk.CTkBaseClass | ctk.CTk, initial_dir: Path | None 
         parent=parent.winfo_toplevel(),
         title="Select Word documents",
         filetypes=list(DOCX_FILETYPES),
+        initialdir=str(initial_dir) if initial_dir else None,
+    )
+    return [Path(item) for item in selection]
+
+
+def ask_batch_files(parent: ctk.CTkBaseClass | ctk.CTk, initial_dir: Path | None = None) -> list[Path]:
+    """Open the native multi-select file picker for text/CSV batch input."""
+    selection = filedialog.askopenfilenames(
+        parent=parent.winfo_toplevel(),
+        title="Select text or CSV files",
+        filetypes=list(BATCH_FILETYPES),
         initialdir=str(initial_dir) if initial_dir else None,
     )
     return [Path(item) for item in selection]

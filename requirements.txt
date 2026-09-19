@@ -8,6 +8,8 @@ python-docx>=1.1.0         # reading Word .docx documents
 reportlab>=4.0.0           # built-in Word-to-PDF renderer
 tkinterdnd2>=0.4.2         # drag-and-drop of files from Explorer
 pypdfium2>=4.30.0          # first-page thumbnails and the split preview
+pymupdf>=1.24.0            # PDF -> Image rendering (core/render.py)
+chardet>=5.2.0             # encoding detection for batch text -> PDF
 
 # ---------------------------------------------------------------------------
 # Optional / development only

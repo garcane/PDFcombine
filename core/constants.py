@@ -73,6 +73,31 @@ RANGE_FILENAME_TEMPLATE: Final[str] = "{stem}_Pages_{start}-{end}.pdf"
 EXTRACT_FILENAME_TEMPLATE: Final[str] = "{stem}_Extracted.pdf"
 DEFAULT_MERGE_FILENAME: Final[str] = "Merged.pdf"
 
+# --------------------------------------------------------------------------- #
+# PDF to Image
+# --------------------------------------------------------------------------- #
+#: Raster formats the render tool can produce.
+IMAGE_FORMATS: Final[tuple[str, ...]] = ("png", "jpg")
+IMAGE_FILENAME_TEMPLATE: Final[str] = "{stem}_Page_{index:03d}.{ext}"
+DEFAULT_RENDER_DPI: Final[int] = 150
+MIN_RENDER_DPI: Final[int] = 36
+MAX_RENDER_DPI: Final[int] = 600
+
+# --------------------------------------------------------------------------- #
+# Batch: text/CSV to PDF
+# --------------------------------------------------------------------------- #
+#: Extensions treated as "plain text" input for the batch-to-PDF tool. ``.sql``
+#: is included so query/script files render the same way as any other text
+#: file, rather than needing a dedicated tool.
+TEXT_EXTENSIONS: Final[tuple[str, ...]] = (".txt", ".log", ".sql", ".md")
+CSV_EXTENSIONS: Final[tuple[str, ...]] = (".csv",)
+BATCH_INPUT_EXTENSIONS: Final[tuple[str, ...]] = TEXT_EXTENSIONS + CSV_EXTENSIONS
+BATCH_FILETYPES: Final[tuple[tuple[str, str], ...]] = (
+    ("Text and CSV files", "*.txt *.log *.sql *.md *.csv"),
+    ("All files", "*.*"),
+)
+DEFAULT_BATCH_COMBINED_NAME: Final[str] = "Batch_Combined.pdf"
+
 #: Hard ceiling used by the range parser to reject absurd input early.
 MAX_PAGE_NUMBER: Final[int] = 1_000_000
 

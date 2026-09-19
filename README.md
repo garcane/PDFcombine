@@ -1,7 +1,8 @@
 # PDF Toolkit
 
-A modern desktop application for merging and splitting PDFs and converting
-Word documents, on Windows. Built with Python and CustomTkinter, it looks and
+A modern desktop application for merging and splitting PDFs, converting Word
+documents, exporting PDF pages as images, and batch-converting text/CSV
+files to PDF, on Windows. Built with Python and CustomTkinter, it looks and
 behaves like commercial desktop software: dark theme, native file dialogs,
 drag-and-drop, progress reporting, cancellable jobs and friendly error
 handling.
@@ -54,6 +55,22 @@ Everything runs locally — no file ever leaves the machine.
   LibreOffice when installed, otherwise the built-in renderer, which needs no
   other software. You can force a specific engine from the drop-down.
 
+### PDF to Image
+* Export every page - or a specific selection (`1, 4, 7-9`) - as PNG or JPEG.
+* Resolution is configurable from 36 to 600 DPI.
+* Renders with **PyMuPDF**, streaming one page at a time so large documents
+  never need to be fully loaded into memory.
+
+### Batch to PDF
+* Convert **text, log, `.sql` and Markdown** files (monospace layout) and
+  **CSV** files (as a table with a header row) to PDF.
+* Input as multiple files, by picker or by drag-and-drop; re-order the
+  selection with the ▲ / ▼ controls.
+* Output to **one PDF per file**, or **collated into a single file** in the
+  order shown, each preceded by a heading with the source file name.
+* A file that cannot be read (wrong encoding, empty, unsupported type) is
+  reported and the rest of the batch continues.
+
 ### Throughout
 * Dark theme, responsive layout, consistent spacing, large readable controls.
 * Status bar, progress bars, cancellable long-running jobs.
@@ -93,6 +110,7 @@ pdf-toolkit/
 ├── app.py                  Application entry point, window and view routing
 │
 ├── core/                   All document logic - imports no UI code
+│   ├── batch.py            TextToPdfTool - CSV/text/.sql -> PDF (reportlab)
 │   ├── constants.py        Configurable constants (paths, sizes, templates)
 │   ├── docx_converter.py   DocxConvertTool, OutputFormat, PdfEngine
 │   ├── docx_reader.py      Word -> format-neutral block model
@@ -103,6 +121,7 @@ pdf-toolkit/
 │   ├── models.py           FileInfo, PdfFileInfo, DocxFileInfo, OperationResult
 │   ├── pdf_renderer.py     Block model -> PDF (built-in Word->PDF engine)
 │   ├── progress.py         Progress reporting and cancellation tokens
+│   ├── render.py           PdfToImageTool - PDF page -> PNG/JPEG (PyMuPDF)
 │   ├── splitter.py         PdfSplitTool, SplitMode
 │   ├── thumbnails.py       First-page rendering with graceful fallback
 │   ├── utils.py            Sizes, dates, natural sort, folder scanning
@@ -110,12 +129,14 @@ pdf-toolkit/
 │
 ├── ui/                     All presentation - imports no pypdf
 │   ├── base_view.py        BaseView + AppController protocol
+│   ├── batch_view.py       Batch to PDF workflow
 │   ├── convert_view.py     Word conversion workflow
 │   ├── dialogs.py          Themed modal dialogs, native file pickers
 │   ├── dnd.py              Optional Explorer drag-and-drop
 │   ├── file_list.py        Re-orderable review list (drag + buttons)
 │   ├── home.py             Launcher screen and the tool registry
 │   ├── merge_view.py       Merge workflow
+│   ├── render_view.py      PDF to Image workflow
 │   ├── split_view.py       Split workflow
 │   ├── theme.py            Colours, fonts, spacing, button styles
 │   ├── widgets.py          Header, cards, progress panel, status bar
