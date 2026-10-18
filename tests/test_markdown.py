@@ -186,7 +186,7 @@ def test_convert_mirrors_subfolder_structure(tree: Path, tmp_path: Path) -> None
     result = MarkdownConvertTool().convert(files, output)
 
     relative = {path.relative_to(output).as_posix() for path in result.output_paths}
-    assert relative == {"a.md", "b.md", "c.md", "Nested/d.md"}
+    assert relative == {"a.md", "input.md", "Nested/d.md"}
 
 
 def test_convert_flattens_when_not_mirroring(tree: Path, tmp_path: Path) -> None:
@@ -194,8 +194,54 @@ def test_convert_flattens_when_not_mirroring(tree: Path, tmp_path: Path) -> None
     files = infos(discover_markdown_sources(tree, recursive=True), base=tree)
     result = MarkdownConvertTool().convert(files, output, mirror_structure=False)
 
-    assert {path.name for path in result.output_paths} == {"a.md", "b.md", "c.md", "d.md"}
+    assert {path.name for path in result.output_paths} == {"a.md", "input.md", "d.md"}
     assert all(path.parent == output for path in result.output_paths)
+
+
+def test_convert_combines_same_folder_images_in_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image_folder = tmp_path / "scans"
+    image_folder.mkdir()
+    first = make_image(image_folder / "page1.png")
+    second = make_image(image_folder / "page2.jpg")
+    files = infos([second, first], base=tmp_path)
+    monkeypatch.setattr("core.markdown_converter._import_pymupdf4llm", lambda: object())
+    monkeypatch.setattr(
+        MarkdownConvertTool,
+        "_extract_text",
+        staticmethod(lambda _pymupdf4llm, info: f"# {info.stem}"),
+    )
+
+    output = tmp_path / "out"
+    result = MarkdownConvertTool().convert(files, output)
+
+    assert result.output_paths == [output / "scans" / "scans.md"]
+    assert result.output_paths[0].read_text(encoding="utf-8") == "# page2\n\n# page1\n"
+    assert result.pages_written == 2
+
+
+def test_convert_combined_images_flatten_when_not_mirroring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image_folder = tmp_path / "Nested"
+    image_folder.mkdir()
+    files = infos(
+        [make_image(image_folder / "page1.png"), make_image(image_folder / "page2.png")],
+        base=tmp_path,
+    )
+    monkeypatch.setattr("core.markdown_converter._import_pymupdf4llm", lambda: object())
+    monkeypatch.setattr(
+        MarkdownConvertTool,
+        "_extract_text",
+        staticmethod(lambda _pymupdf4llm, info: info.stem),
+    )
+
+    output = tmp_path / "out"
+    result = MarkdownConvertTool().convert(files, output, mirror_structure=False)
+
+    assert result.output_paths == [output / "Nested.md"]
+    assert result.output_paths[0].read_text(encoding="utf-8") == "page1\n\npage2\n"
 
 
 def test_convert_keeps_existing_files_when_not_overwriting(

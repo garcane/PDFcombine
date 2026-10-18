@@ -61,8 +61,12 @@ Everything runs locally — no file ever leaves the machine.
   drag-and-drop.
 * Conversion is powered by **PyMuPDF4LLM**, which preserves headings, lists
   and tables as Markdown structure.
-* One `.md` file per input; batch conversions can **recreate the source
-  sub-folder structure** in the output folder.
+* One `.md` file per **PDF**; **images coming from the same folder are
+  combined into a single `.md` file** named after that folder, so a folder
+  full of scanned page images converts to one document. (A lone image still
+  produces its own `.md` file.)
+* Batch conversions can **recreate the source sub-folder structure** in the
+  output folder.
 * **Scanned pages and standalone images are OCR'd automatically** when the
   optional Tesseract OCR engine is installed; an image without recognised
   text still produces a Markdown file that references the picture itself.

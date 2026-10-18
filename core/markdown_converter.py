@@ -6,9 +6,11 @@ pages of a document and emits Markdown with headings, lists and tables
 preserved; scanned pages and standalone images are OCR'd automatically when
 the optional Tesseract engine is installed.
 
-Anything that is not a PDF is treated as a raster image: images without any
-recognised text still produce a useful Markdown file that references the
-picture itself, so the conversion never silently yields an empty document.
+Anything that is not a PDF is treated as a raster image. Images coming from
+the same folder are collated into a single combined Markdown file named after
+that folder (mirroring how one PDF becomes one Markdown file); an image
+without any recognised text still contributes a reference to the picture
+itself, so the conversion never silently yields an empty document.
 
 Like every other core tool, this module imports no UI code and reports
 progress through :class:`core.progress.ProgressReporter`.
@@ -52,9 +54,44 @@ def _import_pymupdf4llm() -> Any:
 
 
 class MarkdownConvertTool:
-    """Converts PDFs and PNG/JPEG images into Markdown files, one per input."""
+    """Converts PDFs and PNG/JPEG images into Markdown files.
+
+    A PDF becomes one Markdown file; images coming from the same folder are
+    combined into a single Markdown file named after that folder, so a
+    folder full of scanned pages converts to one document.
+    """
 
     display_name = "Convert to Markdown"
+
+    @staticmethod
+    def plan(files: list[MarkdownFileInfo]) -> list[list[MarkdownFileInfo]]:
+        """Split ``files`` into ordered conversion groups.
+
+        Each PDF forms its own group. Images sharing a parent folder form
+        one group so they collapse into a single combined Markdown file;
+        images from different folders stay in separate groups and a lone
+        image remains a group of one.
+
+        Args:
+            files: The sources, in display order.
+
+        Returns:
+            The groups, in the order their first member appears.
+        """
+        groups: list[list[MarkdownFileInfo]] = []
+        group_of: dict[Path, int] = {}
+        for info in files:
+            if info.kind == "PDF":
+                groups.append([info])
+                continue
+            folder = info.path.parent
+            position = group_of.get(folder)
+            if position is None:
+                group_of[folder] = len(groups)
+                groups.append([info])
+            else:
+                groups[position].append(info)
+        return groups
 
     def convert(
         self,
@@ -68,7 +105,8 @@ class MarkdownConvertTool:
         """Convert ``files`` into ``output_folder``.
 
         Args:
-            files: Sources to convert, in the order they should be processed.
+            files: Sources to convert. PDFs keep one output file each;
+                images sharing a parent folder are combined into one file.
             output_folder: Destination folder, created when missing.
             mirror_structure: Recreate each file's sub-folder path under the
                 output folder.
@@ -99,28 +137,37 @@ class MarkdownConvertTool:
 
         pymupdf4llm = _import_pymupdf4llm()
 
+        groups = self.plan(files)
         total = len(files)
+        done = 0
         written: list[Path] = []
         warnings: list[str] = []
         pages_written = 0
 
-        for index, info in enumerate(files, start=1):
+        for group in groups:
             token.raise_if_cancelled()
-            progress.update(index - 1, total, f"Converting {info.name}")
-            destination = self._destination(info, output_folder, mirror_structure)
+            label = self._label(group)
+            progress.update(done, total, f"Converting {label}")
+            destination = self._destination_for(group, output_folder, mirror_structure)
             try:
                 validate_output_folder(destination.parent)
                 if not overwrite:
                     destination = unique_path(destination)
-                markdown = self._markdown_for(pymupdf4llm, info, destination, token)
+                if len(group) == 1:
+                    markdown = self._markdown_for(pymupdf4llm, group[0], destination, token)
+                else:
+                    markdown = self._combined_markdown(
+                        pymupdf4llm, group, destination, progress, done, total, warnings, token
+                    )
                 _write_text(destination, markdown)
             except PdfToolkitError as exc:
-                logger.warning("Skipped %s: %s", info.path, exc)
-                warnings.append(f"{info.name}: {exc}")
+                logger.warning("Skipped %s: %s", label, exc)
+                warnings.append(f"{label}: {exc}")
             else:
                 written.append(destination)
-                pages_written += max(info.page_count, 1)
-            progress.update(index, total, f"Finished {info.name}")
+                pages_written += sum(max(info.page_count, 1) for info in group)
+            done += len(group)
+            progress.update(done, total, f"Finished {label}")
 
         if not written:
             raise PdfWriteError(
@@ -140,20 +187,77 @@ class MarkdownConvertTool:
     # ----------------------------------------------------------------- #
     # Conversion
     # ----------------------------------------------------------------- #
-    @staticmethod
+    @classmethod
     def _markdown_for(
+        cls,
         pymupdf4llm: Any,
         info: MarkdownFileInfo,
         destination: Path,
         token: CancellationToken,
     ) -> str:
-        """Return the Markdown text for one source file.
+        """Return the Markdown text for one standalone source file.
 
         Raises:
             PdfReadError: The file could not be converted, or a PDF contains
                 no extractable text.
         """
         token.raise_if_cancelled()
+        markdown = cls._extract_text(pymupdf4llm, info)
+        if markdown:
+            return f"{markdown}\n"
+        if info.kind == "PDF":
+            raise PdfReadError(
+                f"'{info.name}' contains no extractable text.\n"
+                "Scanned documents need the optional Tesseract OCR engine."
+            )
+        return cls._image_fallback(info, destination)
+
+    @classmethod
+    def _combined_markdown(
+        cls,
+        pymupdf4llm: Any,
+        members: list[MarkdownFileInfo],
+        destination: Path,
+        progress: ProgressReporter,
+        start: int,
+        total: int,
+        warnings: list[str],
+        token: CancellationToken,
+    ) -> str:
+        """Collate the text of every image in ``members`` into one document.
+
+        Images whose text cannot be recognised contribute their picture
+        reference instead, and unreadable images are reported in ``warnings``
+        while the rest of the group continues.
+
+        Raises:
+            PdfReadError: No image in the group could be converted.
+        """
+        parts: list[str] = []
+        for offset, info in enumerate(members):
+            token.raise_if_cancelled()
+            progress.update(start + offset, total, f"Converting {info.name}")
+            try:
+                text = cls._extract_text(pymupdf4llm, info)
+            except PdfReadError as exc:
+                logger.warning("Skipped %s: %s", info.path, exc)
+                warnings.append(f"{info.name}: {exc}")
+                continue
+            parts.append(text if text else cls._inline_reference(info, destination))
+
+        if not parts:
+            raise PdfReadError(
+                f"None of the {len(members)} images could be converted."
+            )
+        return "\n\n".join(parts) + "\n"
+
+    @staticmethod
+    def _extract_text(pymupdf4llm: Any, info: MarkdownFileInfo) -> str:
+        """Return the Markdown text recognised in one source, possibly empty.
+
+        Raises:
+            PdfReadError: The file could not be converted at all.
+        """
         try:
             # Always pass a path string: PyMuPDF4LLM opens (and closes) the
             # document itself, which keeps its page handling completely under
@@ -172,31 +276,32 @@ class MarkdownConvertTool:
         except Exception as exc:  # noqa: BLE001 - library errors vary
             logger.exception("Could not convert %s", info.path)
             raise PdfReadError(f"'{info.name}' could not be converted.\n{exc}") from exc
+        return markdown.strip()
 
-        markdown = markdown.strip()
-        if markdown:
-            return f"{markdown}\n"
-        if info.kind == "PDF":
-            raise PdfReadError(
-                f"'{info.name}' contains no extractable text.\n"
-                "Scanned documents need the optional Tesseract OCR engine."
-            )
-        return MarkdownConvertTool._image_fallback(info, destination)
+    @classmethod
+    def _image_fallback(cls, info: MarkdownFileInfo, destination: Path) -> str:
+        """Markdown referencing the picture itself when no text was recognised."""
+        return (
+            f"# {info.stem}\n\n"
+            f"{cls._inline_reference(info, destination)}\n\n"
+            "_No text was recognised in this image. Install the Tesseract OCR "
+            "engine to extract text from pictures automatically._\n"
+        )
 
     @staticmethod
-    def _image_fallback(info: MarkdownFileInfo, destination: Path) -> str:
-        """Markdown referencing the picture itself when no text was recognised."""
+    def _inline_reference(info: MarkdownFileInfo, destination: Path) -> str:
+        """A bare ``![name](relative/path)`` line pointing at the picture."""
+        reference = MarkdownConvertTool._image_reference(info, destination)
+        return f"![{info.stem}]({reference})"
+
+    @staticmethod
+    def _image_reference(info: MarkdownFileInfo, destination: Path) -> str:
+        """Relative (POSIX) path from ``destination``'s folder to the image."""
         try:
             reference = os.path.relpath(info.path, destination.parent)
         except ValueError:  # pragma: no cover - source and output on drives
             reference = str(info.path)
-        reference = Path(reference).as_posix()
-        return (
-            f"# {info.stem}\n\n"
-            f"![{info.stem}]({reference})\n\n"
-            "_No text was recognised in this image. Install the Tesseract OCR "
-            "engine to extract text from pictures automatically._\n"
-        )
+        return Path(reference).as_posix()
 
     @staticmethod
     def _destination(info: MarkdownFileInfo, output_folder: Path, mirror: bool) -> Path:
@@ -205,6 +310,34 @@ class MarkdownConvertTool:
         if mirror and info.relative_path is not None:
             return output_folder / info.relative_path.parent / name
         return output_folder / name
+
+    @classmethod
+    def _destination_for(
+        cls, group: list[MarkdownFileInfo], output_folder: Path, mirror: bool
+    ) -> Path:
+        """Work out where one group's Markdown file belongs.
+
+        A lone source keeps its own name (honouring the mirror switch); a
+        combined image group is named after its folder and honours the mirror
+        switch using that folder's path relative to the selected input folder.
+        """
+        if len(group) == 1:
+            return cls._destination(group[0], output_folder, mirror)
+        folder_name = group[0].path.parent.name or "Images"
+        relative_folder = (
+            group[0].relative_path.parent
+            if mirror and group[0].relative_path is not None
+            else Path()
+        )
+        return output_folder / relative_folder / f"{folder_name}{MARKDOWN_EXTENSION}"
+
+    @staticmethod
+    def _label(group: list[MarkdownFileInfo]) -> str:
+        """Human-readable identity of a group for progress and warnings."""
+        if len(group) == 1:
+            return group[0].name
+        folder_name = group[0].path.parent.name or "Images"
+        return f"{folder_name}/ ({len(group)} images)"
 
     @staticmethod
     def _summary(written: int, failed: int) -> str:

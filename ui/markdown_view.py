@@ -87,7 +87,7 @@ class MarkdownView(BaseView):
             container,
             "Convert to Markdown",
             "Turn PDFs, PNGs and JPEGs into clean Markdown files with "
-            "PyMuPDF4LLM - one .md file per input.",
+            "PyMuPDF4LLM - one file per PDF, one combined file per folder of images.",
             on_back=self.go_home,
         ).pack(fill="x", pady=(0, PAD.md))
 
@@ -469,7 +469,8 @@ class MarkdownView(BaseView):
             return
 
         noun = "file" if count == 1 else "files"
-        target = f"{count} Markdown file{'s' if count != 1 else ''}"
+        outputs = len(self._tool.plan(self._list.files))  # type: ignore[arg-type]
+        target = f"{outputs} Markdown file{'s' if outputs != 1 else ''}"
         text = f"{count} {noun}  ·  {human_readable_size(self._list.total_size)}  →  {target}"
         self._summary.configure(text=text)
         self.controller.set_status_detail(f"{count} {noun}")
@@ -508,10 +509,11 @@ class MarkdownView(BaseView):
         mirror = bool(self._mirror.get())
         overwrite = bool(self._overwrite.get())
 
-        if len(files) > 50 and not ask_confirm(
+        outputs = len(self._tool.plan(files))
+        if outputs > 50 and not ask_confirm(
             self,
             "Create many files?",
-            f"This will create {len(files)} Markdown files in:\n{folder}\n\nContinue?",
+            f"This will create {outputs} Markdown files in:\n{folder}\n\nContinue?",
             confirm_label="Convert",
         ):
             return

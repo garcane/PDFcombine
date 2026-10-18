@@ -172,7 +172,7 @@ class HomeView(BaseView):
                 title="Convert to Markdown",
                 description=(
                     "Turn PDFs and PNG/JPEG images into clean Markdown files "
-                    "with PyMuPDF4LLM - one per file."
+                    "with PyMuPDF4LLM - one .md per PDF, one per folder of images."
                 ),
                 view_name="markdown",
                 accent="#ec4899",
