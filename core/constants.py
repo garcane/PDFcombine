@@ -66,6 +66,22 @@ LOCK_FILE_PREFIX: Final[str] = "~$"
 #: Default name for a collated conversion output (extension added by the tool).
 DEFAULT_COMBINED_NAME: Final[str] = "Combined"
 
+# --------------------------------------------------------------------------- #
+# Markdown conversion: PDFs and images via PyMuPDF4LLM
+# --------------------------------------------------------------------------- #
+#: Extension written by the Markdown converter.
+MARKDOWN_EXTENSION: Final[str] = ".md"
+
+#: Raster image formats accepted alongside PDFs by the Markdown converter.
+IMAGE_EXTENSIONS: Final[tuple[str, ...]] = (".png", ".jpg", ".jpeg")
+
+#: Every file kind the Markdown converter accepts as input.
+MARKDOWN_SOURCE_EXTENSIONS: Final[tuple[str, ...]] = PDF_EXTENSIONS + IMAGE_EXTENSIONS
+MARKDOWN_FILETYPES: Final[tuple[tuple[str, str], ...]] = (
+    ("PDF and image files", "*.pdf *.png *.jpg *.jpeg"),
+    ("All files", "*.*"),
+)
+
 #: Templates used when naming generated files. ``{stem}`` is the source file
 #: name without extension, indices are 1-based and zero padded.
 PAGE_FILENAME_TEMPLATE: Final[str] = "Page_{index:03d}.pdf"

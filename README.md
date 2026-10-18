@@ -1,11 +1,11 @@
 # PDF Toolkit
 
 A modern desktop application for merging and splitting PDFs, converting Word
-documents, exporting PDF pages as images, and batch-converting text/CSV
-files to PDF, on Windows. Built with Python and CustomTkinter, it looks and
-behaves like commercial desktop software: dark theme, native file dialogs,
-drag-and-drop, progress reporting, cancellable jobs and friendly error
-handling.
+documents, turning PDFs and images into Markdown, exporting PDF pages as
+images, and batch-converting text/CSV files to PDF, on Windows. Built with
+Python and CustomTkinter, it looks and behaves like commercial desktop
+software: dark theme, native file dialogs, drag-and-drop, progress reporting,
+cancellable jobs and friendly error handling.
 
 Everything runs locally — no file ever leaves the machine.
 
@@ -54,6 +54,20 @@ Everything runs locally — no file ever leaves the machine.
 * **PDF engine** is chosen automatically — Microsoft Word (via `pywin32`) or
   LibreOffice when installed, otherwise the built-in renderer, which needs no
   other software. You can force a specific engine from the drop-down.
+
+### Convert to Markdown
+* Input as **PDF, PNG or JPEG** files - one at a time, in bulk, or as a
+  **whole folder** (optionally including sub-folders) - by picker or by
+  drag-and-drop.
+* Conversion is powered by **PyMuPDF4LLM**, which preserves headings, lists
+  and tables as Markdown structure.
+* One `.md` file per input; batch conversions can **recreate the source
+  sub-folder structure** in the output folder.
+* **Scanned pages and standalone images are OCR'd automatically** when the
+  optional Tesseract OCR engine is installed; an image without recognised
+  text still produces a Markdown file that references the picture itself.
+* A file that cannot be read is reported and the rest of the batch
+  continues.
 
 ### PDF to Image
 * Export every page - or a specific selection (`1, 4, 7-9`) - as PNG or JPEG.
@@ -116,16 +130,17 @@ pdf-toolkit/
 │   ├── docx_reader.py      Word -> format-neutral block model
 │   ├── exceptions.py       User-facing exception hierarchy
 │   ├── logging_config.py   Rotating file + console logging
+│   ├── markdown_converter.py  MarkdownConvertTool - PDF/image -> Markdown (PyMuPDF4LLM)
 │   ├── markdown_writer.py  Block model -> Markdown
 │   ├── merger.py           PdfMergeTool
-│   ├── models.py           FileInfo, PdfFileInfo, DocxFileInfo, OperationResult
+│   ├── models.py           FileInfo, Pdf/Docx/MarkdownFileInfo, OperationResult
 │   ├── pdf_renderer.py     Block model -> PDF (built-in Word->PDF engine)
 │   ├── progress.py         Progress reporting and cancellation tokens
 │   ├── render.py           PdfToImageTool - PDF page -> PNG/JPEG (PyMuPDF)
 │   ├── splitter.py         PdfSplitTool, SplitMode
 │   ├── thumbnails.py       First-page rendering with graceful fallback
 │   ├── utils.py            Sizes, dates, natural sort, folder scanning
-│   └── validator.py        PDF/Word inspection and page-range parsing
+│   └── validator.py        PDF/Word/image inspection and page-range parsing
 │
 ├── ui/                     All presentation - imports no pypdf
 │   ├── base_view.py        BaseView + AppController protocol
@@ -135,6 +150,7 @@ pdf-toolkit/
 │   ├── dnd.py              Optional Explorer drag-and-drop
 │   ├── file_list.py        Re-orderable review list (drag + buttons)
 │   ├── home.py             Launcher screen and the tool registry
+│   ├── markdown_view.py    PDF/image to Markdown workflow
 │   ├── merge_view.py       Merge workflow
 │   ├── render_view.py      PDF to Image workflow
 │   ├── split_view.py       Split workflow

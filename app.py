@@ -33,6 +33,7 @@ from ui.convert_view import ConvertView
 from ui.dialogs import ask_confirm, show_message
 from ui.dnd import bootstrap_root
 from ui.home import HomeView
+from ui.markdown_view import MarkdownView
 from ui.merge_view import MergeView
 from ui.render_view import RenderView
 from ui.split_view import SplitView
@@ -86,7 +87,7 @@ class PdfToolkitApp(ctk.CTk):
 
         Registering a future tool means adding one line here.
         """
-        for view_class in (HomeView, MergeView, SplitView, ConvertView, RenderView, BatchView):
+        for view_class in (HomeView, MergeView, SplitView, ConvertView, MarkdownView, RenderView, BatchView):
             view = view_class(self._container, self)
             self._views[view.view_name] = view
 

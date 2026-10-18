@@ -16,8 +16,8 @@ from pypdf.errors import PdfReadError as PyPdfReadError
 
 from core.constants import LOCK_FILE_PREFIX, MAX_PAGE_NUMBER
 from core.exceptions import PdfReadError, PdfWriteError, ValidationError
-from core.models import DocxFileInfo, PdfFileInfo
-from core.utils import is_docx, is_pdf
+from core.models import DocxFileInfo, MarkdownFileInfo, PdfFileInfo
+from core.utils import is_docx, is_markdown_source, is_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +152,77 @@ def inspect_docx(path: Path, base_folder: Path | None = None) -> DocxFileInfo:
         modified=stat.st_mtime,
         paragraph_count=document.paragraph_count,
         table_count=document.table_count,
+        relative_path=relative,
+    )
+
+
+def inspect_markdown_source(path: Path, base_folder: Path | None = None) -> MarkdownFileInfo:
+    """Read ``path`` (a PDF or PNG/JPEG image) and return its metadata.
+
+    Args:
+        path: Location of the file to inspect.
+        base_folder: The folder the user selected, when the file came from a
+            folder scan. Stored so the converter can mirror the sub-folder
+            structure in the output.
+
+    Returns:
+        A populated :class:`MarkdownFileInfo`.
+
+    Raises:
+        PdfReadError: The file is missing, empty, not a supported format, or
+            otherwise unreadable.
+    """
+    from PIL import Image
+
+    if not path.exists():
+        raise PdfReadError(f"'{path.name}' no longer exists at:\n{path.parent}")
+    if not path.is_file():
+        raise PdfReadError(f"'{path.name}' is not a file.")
+    if not is_markdown_source(path):
+        raise PdfReadError(
+            f"'{path.name}' is not a PDF, PNG or JPEG file.\n"
+            "Supported inputs are .pdf, .png, .jpg and .jpeg files."
+        )
+
+    try:
+        stat = path.stat()
+    except OSError as exc:
+        raise PdfReadError(f"'{path.name}' could not be read.\n{exc}") from exc
+
+    if stat.st_size == 0:
+        raise PdfReadError(f"'{path.name}' is empty (0 bytes).")
+    if not os.access(path, os.R_OK):
+        raise PdfReadError(f"'{path.name}' cannot be opened - permission denied.")
+
+    page_count = 0
+    dimensions: tuple[int, int] | None = None
+    if is_pdf(path):
+        inspected = inspect_pdf(path)  # reuse the full PDF sanity checks
+        page_count = inspected.page_count
+        kind = "PDF"
+    else:
+        try:
+            with Image.open(path) as image:
+                dimensions = image.size
+                image.verify()
+        except OSError as exc:
+            raise PdfReadError(f"'{path.name}' is not a readable image.\n{exc}") from exc
+        kind = {"png": "PNG", "jpg": "JPEG", "jpeg": "JPEG"}[path.suffix.lower()[1:]]
+
+    relative: Path | None = None
+    if base_folder is not None:
+        try:
+            relative = path.relative_to(base_folder)
+        except ValueError:
+            relative = None
+
+    return MarkdownFileInfo(
+        path=path,
+        size_bytes=stat.st_size,
+        modified=stat.st_mtime,
+        kind=kind,
+        page_count=page_count,
+        dimensions=dimensions,
         relative_path=relative,
     )
 

@@ -10,7 +10,13 @@ import sys
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from core.constants import DOCX_EXTENSIONS, LOCK_FILE_PREFIX, PDF_EXTENSIONS
+from core.constants import (
+    DOCX_EXTENSIONS,
+    IMAGE_EXTENSIONS,
+    LOCK_FILE_PREFIX,
+    MARKDOWN_SOURCE_EXTENSIONS,
+    PDF_EXTENSIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +53,16 @@ def is_docx(path: Path | str) -> bool:
     if path.name.startswith(LOCK_FILE_PREFIX):
         return False
     return path.suffix.lower() in DOCX_EXTENSIONS
+
+
+def is_image(path: Path | str) -> bool:
+    """Return ``True`` when ``path`` is a supported raster image (PNG/JPEG)."""
+    return Path(path).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def is_markdown_source(path: Path | str) -> bool:
+    """Return ``True`` when ``path`` can be converted to Markdown (PDF/image)."""
+    return Path(path).suffix.lower() in MARKDOWN_SOURCE_EXTENSIONS
 
 
 def discover_files(
@@ -101,6 +117,11 @@ def discover_pdfs(folder: Path, recursive: bool = False) -> list[Path]:
 def discover_docx(folder: Path, recursive: bool = False) -> list[Path]:
     """Return every Word document inside ``folder``, Word lock files excluded."""
     return discover_files(folder, DOCX_EXTENSIONS, recursive)
+
+
+def discover_markdown_sources(folder: Path, recursive: bool = False) -> list[Path]:
+    """Return every PDF and PNG/JPEG image inside ``folder``."""
+    return discover_files(folder, MARKDOWN_SOURCE_EXTENSIONS, recursive)
 
 
 def natural_sort_key(name: str) -> tuple[object, ...]:

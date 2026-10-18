@@ -168,6 +168,16 @@ class HomeView(BaseView):
                 accent="#14b8a6",
             ),
             ToolEntry(
+                icon="📑",
+                title="Convert to Markdown",
+                description=(
+                    "Turn PDFs and PNG/JPEG images into clean Markdown files "
+                    "with PyMuPDF4LLM - one per file."
+                ),
+                view_name="markdown",
+                accent="#ec4899",
+            ),
+            ToolEntry(
                 icon="🖼",
                 title="PDF to Image",
                 description=(

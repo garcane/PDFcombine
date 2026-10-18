@@ -106,6 +106,41 @@ class DocxFileInfo(FileInfo):
         return f"{self.content_label}  ·  {self.size_label}  ·  {self.modified_label}"
 
 
+@dataclass(slots=True)
+class MarkdownFileInfo(FileInfo):
+    """A PDF or image that has been inspected and accepted.
+
+    Produced by :func:`core.validator.inspect_markdown_source` and used by the
+    PyMuPDF4LLM-backed Markdown converter.
+    """
+
+    #: ``"PDF"``, ``"PNG"`` or ``"JPEG"``.
+    kind: str = "PDF"
+    #: Number of pages; ``0`` for raster images.
+    page_count: int = 0
+    #: Pixel size ``(width, height)`` for images, ``None`` for PDFs.
+    dimensions: tuple[int, int] | None = None
+    #: Path of this file relative to the folder the user selected, when the
+    #: file came from a folder scan. Used to mirror the folder structure.
+    relative_path: Path | None = None
+
+    @property
+    def content_label(self) -> str:
+        """``"3 pages"`` for PDFs, ``"640 × 200 px"`` for images."""
+        if self.dimensions is not None:
+            width, height = self.dimensions
+            return f"{width} × {height} px"
+        return "1 page" if self.page_count == 1 else f"{self.page_count} pages"
+
+    @property
+    def detail_label(self) -> str:
+        """Kind, content summary, size and modification date."""
+        return (
+            f"{self.kind}  ·  {self.content_label}  ·  "
+            f"{self.size_label}  ·  {self.modified_label}"
+        )
+
+
 @dataclass(slots=True, frozen=True)
 class OperationResult:
     """Summary of a completed merge, split or conversion job."""
