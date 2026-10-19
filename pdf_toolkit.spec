@@ -38,7 +38,6 @@ a = Analysis(  # noqa: F821
         "reportlab.graphics.barcode",
         "pymupdf",
         "pymupdf4llm",
-        "pymupdf_layout",
         "chardet",
     ],
     hookspath=[],
